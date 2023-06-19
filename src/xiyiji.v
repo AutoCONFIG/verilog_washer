@@ -61,9 +61,11 @@ always @(mode_c or time_c) begin
     case (mode_c)
         M0:begin //未指定，意味待机状态
             time_t <= 4'b0000;
+            enable <= 0;
         end
         M1:begin //漂洗，电机状态循环15次
             time_t <= 4'b1111;
+            enable <= 0;
         end
         M2:begin //洗涤（洗，漂洗，脱水）
             time_t <= 4'b0111;  //洗，电机状态循环7次
@@ -78,7 +80,7 @@ always @(mode_c or time_c) begin
                 enable <= 0;
                 tmp <= 2;
             end
-            if (tmp == 2) begin
+            if (time_c == 4'b0000 && tmp == 2) begin
                 time_t <= 4'b0000; //洗循环清零
                 enable <= 0;
                 tmp <=3;
@@ -162,8 +164,8 @@ always@(posedge clk) begin   //c_s模块
         n_s <= S0;
         count <= 6'b000000;
         tmp <= 0;
-        time_c <= time_t;
-        mode_c <= mode_t;
+        time_c <= 0;
+        mode_c <= 0;
         alarm  <= 0;
         enable <= 1;
     end
