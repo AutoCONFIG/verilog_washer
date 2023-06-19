@@ -59,7 +59,7 @@ always @(mode or clk) begin
             time_t <= 4'b1111;  //漂洗，电机循环15次
             mode <= M3;
         end
-        M3:begin
+        M3:begin    //脱水
             n_s <= S5
             time_t <= 4'b0000; //洗循环清零
         end
@@ -97,13 +97,22 @@ always @(count or c_s) begin    //n_s模块
             end
         end
         S4:begin    //进水
-            n_s <= S0;
+            if (count == 6'b111100) begin //持续60秒
+                count <= 6'b000000;    //计数器清零
+                n_s <= S0;
+            end
         end
         S5:begin    //排水
-            n_s <= S6;
+            if (count == 6'b111100) begin //持续60秒
+                count <= 6'b000000;    //计数器清零
+                n_s <= S6;
+            end
         end
         S6:begin    //脱水
-            n_s <= S0;
+            if (count == 6'b111100) begin //持续60秒
+                count <= 6'b000000;    //计数器清零
+                n_s <= S0;
+            end
         end
         default:begin
             n_s <= S0;
