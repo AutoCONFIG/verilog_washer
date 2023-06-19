@@ -1,10 +1,11 @@
 module xiyiji(add,ledzheng,ledfan,ledstop,clk,zheng,fan,start,alarm,emergency,count,rst);
 input add,clk,start,emergency,rst;  //#add：增加循环次数 #clk：秒时钟   #start：启动洗衣机  #emergency  启动紧急模式,类似rst复位到初始化状态
-output ledfan,ledzheng,ledstop,zheng,fan,alarm;//,count; //#ledfan：反转指示灯 #ledzheng：正转指示灯   #ledstop：待机指示灯    #zheng/fan：正/反转输出 #alarm：警报    #count：计数剩余值
+output ledfan,ledzheng,ledstop,zheng,fan,alarm; //#ledfan：反转指示灯 #ledzheng：正转指示灯   #ledstop：待机指示灯    #zheng/fan：正/反转输出 #alarm：警报    #count：计数剩余值
+output mode,inlet,drain;//工作模式，进水，排水
 
 reg ledfan,ledstop,ledzheng,zheng,fan,alarm;
 reg [3:0] time_t,time_c;
-output reg [5:0] count;
+output reg [5:0] count; //循环计数器
 reg [1:0] c_s,n_s;
 
 parameter S0 = 2'b00;   //待机状态
