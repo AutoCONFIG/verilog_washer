@@ -5,7 +5,7 @@ output count,mode,inlet,drain;//循环计数器，工作模式（洗、漂洗、
 
 reg ledfan,ledstop,ledzheng,ledinlet,leddrain,zheng,fan,alarm;
 reg [1:0] mode; //mode[0]：未指定，mode[1]：洗，mode[2]：漂洗，mode[3]：脱水
-reg [1:0] c_s,n_s; //电机状态机
+reg [1:0] c_s,n_s; //模式状态机，电机状态机
 reg [3:0] time_t,time_c;
 reg [5:0] count;
 
@@ -14,14 +14,19 @@ parameter S1 = 2'b01;   //正转状态
 parameter S2 = 2'b10;   //待机状态
 parameter S3 = 2'b11;   //反转状态
 
+parameter M0 = 2'b00;   //模式0，待机
+parameter M1 = 2'b01;   //模式1，漂洗
+parameter M2 = 2'b10;   //模式2，洗涤
+parameter M3 = 2'b11;   //模式3，脱水
 
 always @(negedge select) begin
+    if(!select && mode == M3) begin
+        mode <= M0;
+    end
     if (!select) begin
         mode <= mode + 2'b01;
-        
     end
 end
-
 
 always@(negedge emergency) begin
     if (!emergency) begin //紧急状态
@@ -40,8 +45,29 @@ always@(posedge clk or negedge rst) begin   //D触发器模块
         c_s <= n_s;
 end
 
-always @ (count or c_s) begin    //n_s模块
-        case (c_s)
+always @(mode or clk) begin
+    case (mode)
+        M0:begin //未指定，意味待机状态
+            time_t <= 4'b0000;
+        end
+        M1:begin //漂洗，电机循环15次
+            time_t <= 4'b1111;
+        end
+        M2:begin //洗涤（洗，漂洗，脱水）
+            time_t <= 4'b0111;  //洗，电机循环7次
+            while (time_c); //洗
+            time_t <= 4'b1111;  //漂洗，电机循环15次
+            mode <= M3;
+        end
+        M3:begin
+            n_s <= S5
+            time_t <= 4'b0000; //洗循环清零
+        end
+    endcase
+end
+
+always @(count or c_s) begin    //n_s模块
+    case (c_s)
         S0:begin
             if (count == 6'b000101) begin   //维持5秒
                 time_c <= time_c - 4'b0001;
@@ -70,24 +96,33 @@ always @ (count or c_s) begin    //n_s模块
                 n_s <= S0;
             end
         end
+        S4:begin    //进水
+            n_s <= S0;
+        end
+        S5:begin    //排水
+            n_s <= S6;
+        end
+        S6:begin    //脱水
+            n_s <= S0;
+        end
         default:begin
             n_s <= S0;
             time_t <= 4'b0000;
         end
-        endcase
+    endcase
 end
 
 always@(posedge clk) begin   //c_s模块
     if (!start) begin   //未按下启动建，始终保持初始化状态
         n_s <= S0;
-        mode <= 2'b01;
+        mode <= 2'b00;
         count <= 6'b000000;
         time_c <= time_t;
         alarm  <= 0;
     end
     else if (time_c == 0) begin //洗衣流程结束
         n_s <= S0;
-        mode <= 2'b01;
+        mode <= 2'b00;
         count <= 6'b000000;
         alarm <= 1;
     end
@@ -95,31 +130,94 @@ always@(posedge clk) begin   //c_s模块
 
     case (c_s)
         S0:begin
+            inlet <= 0;
+            drain <= 0;
+            dry <=0;
             zheng <= 0;
             fan <=0;
+            ledinlet <= 0;
+            leddrain <= 0;
+            leddry <= 0;
             ledzheng <= 0;
             ledfan <= 0;
             ledstop <= 1;
         end
         S1:begin
+            inlet <= 0;
+            drain <= 0;
+            dry <=0;
             zheng <= 1;
             fan <= 0;
+            ledinlet <= 0;
+            leddrain <= 0;
+            leddry <= 0;
             ledzheng <= 1;
             ledfan <= 0;
             ledstop <= 0;
         end
         S2:begin
+            inlet <= 0;
+            drain <= 0;
+            dry <=0;
             zheng <= 0;
             fan <=0;
+            ledinlet <= 0;
+            leddrain <= 0;
+            leddry <= 0;
             ledzheng <= 0;
             ledfan <= 0;
             ledstop <= 1;
         end
         S3:begin
+            inlet <= 0;
+            drain <= 0;
+            dry <=0;
             zheng <= 0;
             fan <= 1;
+            ledinlet <= 0;
+            leddrain <= 0;
+            leddry <= 0;
             ledzheng <= 0;
             ledfan <= 1;
+            ledstop <= 0;
+        end
+        S4:begin
+            inlet <= 1;
+            drain <= 0;
+            dry <=0;
+            zheng <= 0;
+            fan <=0;
+            ledinlet <= 1;
+            leddrain <= 0;
+            leddry <= 0;
+            ledzheng <= 0;
+            ledfan <= 0;
+            ledstop <= 0;
+        end
+        S5:begin
+            inlet <= 0;
+            drain <= 1;
+            dry <=0;
+            zheng <= 0;
+            fan <=0;
+            ledinlet <= 0;
+            leddrain <= 1;
+            leddry <=0;
+            ledzheng <= 0;
+            ledfan <= 0;
+            ledstop <= 0;
+        end
+        S6:begin
+            inlet <= 0;
+            drain <= 1;
+            dry <=1;
+            zheng <= 0;
+            fan <=0;
+            ledinlet <= 0;
+            leddrain <= 1;
+            leddry <=1;
+            ledzheng <= 0;
+            ledfan <= 0;
             ledstop <= 0;
         end
     endcase
