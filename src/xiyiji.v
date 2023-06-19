@@ -1,23 +1,27 @@
-module xiyiji(add,ledzheng,ledfan,ledstop,clk,zheng,fan,start,alarm,emergency,count,rst);
-input add,clk,start,emergency,rst;  //#add：增加循环次数 #clk：秒时钟   #start：启动洗衣机  #emergency  启动紧急模式,类似rst复位到初始化状态
-output ledfan,ledzheng,ledstop,zheng,fan,alarm; //#ledfan：反转指示灯 #ledzheng：正转指示灯   #ledstop：待机指示灯    #zheng/fan：正/反转输出 #alarm：警报    #count：计数剩余值
-output mode,inlet,drain;//工作模式，进水，排水
+module xiyiji(select,ledzheng,ledfan,ledstop,clk,zheng,fan,start,alarm,emergency,count,rst);
+input select,clk,start,emergency,rst;  //#select：选择工作模式，#clk：秒时钟，#start：启动洗衣机，#emergency：急停模式，#rst：复位
+output ledfan,ledzheng,ledstop,ledinlet,leddrain,zheng,fan,alarm; //#ledfan：反转指示灯 #ledzheng：正转指示灯 #ledinlet：进水指示灯 #leddrain：排水指示灯 #ledstop：待机指示灯    #zheng/fan：正/反转输出 #alarm：警报    #count：计数剩余值
+output count,mode,inlet,drain;//循环计数器，工作模式（洗、漂洗、脱水），进水，排水
 
-reg ledfan,ledstop,ledzheng,zheng,fan,alarm;
+reg ledfan,ledstop,ledzheng,ledinlet,leddrain,zheng,fan,alarm;
+reg [1:0] mode; //mode[0]：未指定，mode[1]：洗，mode[2]：漂洗，mode[3]：脱水
+reg [1:0] c_s,n_s; //电机状态机
 reg [3:0] time_t,time_c;
-output reg [5:0] count; //循环计数器
-reg [1:0] c_s,n_s;
+reg [5:0] count;
 
 parameter S0 = 2'b00;   //待机状态
 parameter S1 = 2'b01;   //正转状态
 parameter S2 = 2'b10;   //待机状态
 parameter S3 = 2'b11;   //反转状态
 
-always @(posedge add) begin //增加循环次数
-    while (add && (time_t < 15)) begin    //最大循环15次
-            time_t = time_t + 4'b0001;
+
+always @(negedge select) begin
+    if (!select) begin
+        mode <= mode + 2'b01;
+        
     end
 end
+
 
 always@(negedge emergency) begin
     if (!emergency) begin //紧急状态
@@ -76,12 +80,14 @@ end
 always@(posedge clk) begin   //c_s模块
     if (!start) begin   //未按下启动建，始终保持初始化状态
         n_s <= S0;
+        mode <= 2'b01;
         count <= 6'b000000;
         time_c <= time_t;
         alarm  <= 0;
     end
     else if (time_c == 0) begin //洗衣流程结束
         n_s <= S0;
+        mode <= 2'b01;
         count <= 6'b000000;
         alarm <= 1;
     end
