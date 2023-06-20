@@ -6,7 +6,7 @@ output c_s,time_c,enable,tmp; //调试用
 
 reg ledfan,ledstop,ledzheng,ledinlet,leddrain,leddry,zheng,fan,inlet,drain,dry,alarm;
 reg enable;
-reg [1:0] tmp;
+reg [2:0] tmp;
 reg [1:0] mode_t,mode_c; //mode[0]：未指定，mode[1]：洗，mode[2]：漂洗，mode[3]：脱水
 reg [3:0] c_s,n_s; //模式状态机，电机状态机
 reg [3:0] time_t,time_c;
@@ -64,91 +64,116 @@ always @(mode_c or time_c) begin
             enable <= 0;
         end
         M1:begin //漂洗，电机状态循环15次
-            time_t <= 4'b1111;
-            enable <= 0;
-        end
-        M2:begin //洗涤（洗，漂洗，脱水）
-            time_t <= 4'b0111;  //洗，电机状态循环7次
             if (time_c == 4'b0000 && tmp == 0) begin
                 time_t <= 4'b1111;
                 enable <= 0;
-                tmp <= 1;
+                tmp <= 2; //漂洗
             end
-            if (time_c == 4'b0000 && tmp == 1) begin
+            if (time_c == 4'b0000 && tmp == 2) begin //漂洗结束
+                time_t <= 4'b0000;
+                enable <= 0;
+                tmp <= 4;
+            end
+        end
+        M2:begin //洗涤（洗，漂洗，脱水）
+            if (time_c == 4'b0000 && tmp == 0) begin //进水
+                time_t <= 4'b0111;
+                n_s <= S4;
+                enable <= 0;
+                tmp <= 1; //洗
+            end
+            if (time_c == 4'b0000 && tmp == 1) begin //洗结束
+                time_t <= 4'b1111;
+                enable <= 0;
+                tmp <= 2; //漂洗
+            end
+            if (time_c == 4'b0000 && tmp == 2) begin //漂洗结束
+                time_t <= 4'b0001; //洗循环清零
                 n_s <= S5;
-                time_t <= 4'b0000; //洗循环清零
                 enable <= 0;
-                tmp <= 2;
+                tmp <= 3; //排水和脱水
             end
-            if (time_c == 4'b0000 && tmp == 2) begin
-                time_t <= 4'b0000; //洗循环清零
+            if (time_c == 4'b0000 && tmp == 3) begin //排水结束
+                time_t <= 4'b0001; //洗循环清零
                 enable <= 0;
-                tmp <=3;
+                tmp <= 4; //终止
             end
         end
         M3:begin    //脱水
-            n_s <= S5;
-            time_t <= 4'b0000; //洗循环清零
-            enable <= 0;
-            tmp <=3;
+            if (time_c == 4'b0000 && tmp == 0) begin //漂洗结束
+                time_t <= 4'b0001; //洗循环清零
+                n_s <= S5;
+                enable <= 0;
+                tmp <= 3; //排水和脱水
+            end
+            if (time_c == 4'b0000 && tmp == 3) begin //排水结束
+                time_t <= 4'b0001; //洗循环清零
+                enable <= 0;
+                tmp <= 4; //终止
+            end
         end
     endcase
 end
 
 always @(count or c_s) begin    //n_s模块
-    case (c_s)
-        S0:begin
-            if (count == 6'b000101) begin   //维持5秒
-                time_c <= time_c - 4'b0001;
-                count <= 6'b000000;    //计数器清零
-                n_s <= S1;
+    if(tmp <= 4) begin
+        case (c_s)
+            S0:begin
+                if (count == 6'b000101) begin   //维持5秒
+                    time_c <= time_c - 4'b0001;
+                    count <= 6'b000000;    //计数器清零
+                    n_s <= S1;
+                end
             end
-        end
-        S1:begin
-            if (count == 6'b111100) begin  //维持60秒
-                time_c <= time_c - 4'b0001;
-                count <= 6'b000000;    //计数器清零
-                n_s <= S2;
+            S1:begin
+                if (count == 6'b111100) begin  //维持60秒
+                    time_c <= time_c - 4'b0001;
+                    count <= 6'b000000;    //计数器清零
+                    n_s <= S2;
+                end
             end
-        end
-        S2:begin
-            if (count == 6'b000101) begin   //维持5秒
-                time_c <= time_c - 4'b0001;
-                count <= 6'b000000;    //计数器清零
-                n_s <= S3;
+            S2:begin
+                if (count == 6'b000101) begin   //维持5秒
+                    time_c <= time_c - 4'b0001;
+                    count <= 6'b000000;    //计数器清零
+                    n_s <= S3;
+                end
             end
-        end
-        S3:begin
-            if (count == 6'b111100 ) begin  //维持60秒
-                time_c <= time_c - 4'b0001;
-                count <= 6'b000000;    //计数器清零
+            S3:begin
+                if (count == 6'b111100 ) begin  //维持60秒
+                    time_c <= time_c - 4'b0001;
+                    count <= 6'b000000;    //计数器清零
+                    n_s <= S0;
+                end
+            end
+            S4:begin    //进水
+                if (count == 6'b111100) begin //持续60秒
+                    count <= 6'b000000;    //计数器清零
+                    if (tmp < 3)
+                        n_s <= S0;
+                end
+            end
+            S5:begin    //排水
+                if (count == 6'b111100) begin //持续60秒
+                    time_c <= time_c - 4'b0001;
+                    count <= 6'b000000;    //计数器清零
+                    if(tmp == 3)
+                        n_s <= S6;
+                end
+            end
+            S6:begin    //脱水
+                if (count == 6'b111100) begin //持续60秒
+                    time_c <= time_c - 4'b0001;
+                    count <= 6'b000000;    //计数器清零
+                end
+            end
+            default:begin
                 n_s <= S0;
+                mode_t <= 2'b00;
+                time_t <= 4'b0000;
             end
-        end
-        S4:begin    //进水
-            if (count == 6'b111100) begin //持续60秒
-                count <= 6'b000000;    //计数器清零
-                n_s <= S0;
-            end
-        end
-        S5:begin    //排水
-            if (count == 6'b111100) begin //持续60秒
-                count <= 6'b000000;    //计数器清零
-                n_s <= S6;
-            end
-        end
-        S6:begin    //脱水
-            if (count == 6'b111100) begin //持续60秒
-                count <= 6'b000000;    //计数器清零
-                n_s <= S0;
-            end
-        end
-        default:begin
-            n_s <= S0;
-            mode_t <= 2'b00;
-            time_t <= 4'b0000;
-        end
-    endcase
+        endcase
+    end
 end
 
 always@(posedge clk or negedge enable) begin
@@ -169,7 +194,7 @@ always@(posedge clk) begin   //c_s模块
         alarm  <= 0;
         enable <= 1;
     end
-    else if (time_c == 0 && tmp == 3) begin //洗衣流程结束
+    else if (time_c == 0 && tmp == 4) begin //洗衣流程结束
         n_s <= S0;
         mode_t <= 2'b00;
         count <= 6'b000000;

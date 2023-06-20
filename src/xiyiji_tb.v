@@ -9,7 +9,7 @@ module xiyiji_tb(select,clk,start,emergency,rst);
     wire [5:0] count;
 
     wire enable;
-    wire [1:0] tmp;
+    wire [2:0] tmp;
     wire [3:0] c_s,time_c; //Debug
 
     initial begin
@@ -18,8 +18,6 @@ module xiyiji_tb(select,clk,start,emergency,rst);
         start=0;
         rst=1;
         emergency=0;
-        #100 select=1;
-        #100 select=0;
         #100 select=1;
         #100 select=0;
 
