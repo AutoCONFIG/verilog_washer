@@ -17,7 +17,7 @@ module xiyiji_tb(select,clk,start,emergency,rst);
         select=0;
         start=0;
         rst=1;
-        emergency=0;
+        emergency=1;
         #100 select=1;
         #100 select=0;
 

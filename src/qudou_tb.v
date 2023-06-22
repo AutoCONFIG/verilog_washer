@@ -7,10 +7,21 @@ module qudou_tb(add);
     initial begin
         clk=0;
         add=0;
-        #100 add=1;
+        #50 add=1;
+        #100 add=0;
+        #10 add=1;
+        #5 add=0;
+        #10 add=1;
+        #5 add=0;
+        #10 add=1;
+        #5 add=0;
+        #10 add=1;
+        #5 add=0;
+        #10 add=1;
+        #5 add=0;
     end
 
-    always #10 clk=~clk;
+    always #5 clk=~clk;
 
 qudou M10(.keyin(add), .keyout(add_qudou), .clock(clk));
 

@@ -36,17 +36,9 @@ end
 
 always@(negedge emergency) begin
     if (emergency == 0) begin //紧急状态
-        inlet <= 0;
-        drain <= 0;
-        dry <= 0;
-        zheng <= 0;
-        fan <= 0;
-        ledinlet <= 0;
-        leddrain <= 0;
-        leddry <= 0;
-        ledzheng <= 0;
-        ledfan <= 0;
-        ledstop <= 1;
+        time_t <= 4'b0000;
+        enable <= 0;
+        tmp <= 4;
     end
 end
 
@@ -59,9 +51,9 @@ end
 
 always @(mode_c or time_c) begin
     case (mode_c)
-        M0:begin //未指定，意味待机状态
-            time_t <= 4'b0000;
-            enable <= 0;
+        M0:begin //未指定
+                time_t <= 4'b0000;
+                enable <= 0;
         end
         M1:begin //漂洗，电机状态循环15次
             if (time_c == 4'b0000 && tmp == 0) begin
